@@ -790,3 +790,11 @@ Questions become immutable (locked) based on their `question_category` and the c
 20. **SocialShareButton** — WhatsApp share. File: `src/components/SocialShareButton.tsx`
 21. **MyRewards + API** — Rewards page. Files: `src/app/ipl/my-rewards/page.tsx`, `src/components/MyRewards.tsx`, `src/app/api/users/rewards/route.ts`
 22. **RulesSection** — Static rules at page bottom. File: `src/components/RulesSection.tsx`
+
+---
+
+## Related Docs
+
+| Document | Path | Description |
+|----------|------|-------------|
+| Analytics Spec | [`docs/Analytics_Spec.md`](./Analytics_Spec.md) | Event dictionary, funnels, metrics, and QA checklist for instrumentation. |
