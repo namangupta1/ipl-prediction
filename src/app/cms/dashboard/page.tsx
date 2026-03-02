@@ -1077,7 +1077,7 @@ export default function CmsDashboardPage() {
                     <th className="border-b border-zinc-200 px-2 py-2">Date</th>
                     <th className="border-b border-zinc-200 px-2 py-2">State</th>
                     <th className="border-b border-zinc-200 px-2 py-2">Prize</th>
-                    <th className="border-b border-zinc-200 px-2 py-2">Match URL</th>
+                    <th className="border-b border-zinc-200 px-2 py-2">Quick Access</th>
                     <th className="border-b border-zinc-200 px-2 py-2">Save</th>
                   </tr>
                 </thead>
@@ -1165,27 +1165,22 @@ export default function CmsDashboardPage() {
                         </div>
                       </td>
                       <td className="border-b border-zinc-100 px-2 py-2">
-                        <div className="flex min-w-56 flex-col gap-2">
-                          <code className="break-all rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-700">
-                            {getMatchPlayPath(match.id)}
-                          </code>
-                          <div className="flex gap-2">
-                            <a
-                              href={getMatchPlayPath(match.id)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                            >
-                              Open
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => void onCopyMatchUrl(match.id)}
-                              className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                            >
-                              {copiedMatchId === match.id ? 'Copied' : 'Copy URL'}
-                            </button>
-                          </div>
+                        <div className="flex items-center gap-1 whitespace-nowrap">
+                          <a
+                            href={getMatchPlayPath(match.id)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                          >
+                            Open
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => void onCopyMatchUrl(match.id)}
+                            className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                          >
+                            {copiedMatchId === match.id ? 'Copied' : 'Copy URL'}
+                          </button>
                         </div>
                       </td>
                       <td className="border-b border-zinc-100 px-2 py-2">
