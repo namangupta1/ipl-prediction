@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 
 import { getUserKey } from '@/lib/userKey'
 
@@ -50,6 +49,10 @@ type AnswersPayload = {
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
+
+type PlayPageProps = {
+  initialMatchId?: string
+}
 
 const PHASE_ORDER: Record<string, number> = {
   pre_match: 1,
@@ -112,9 +115,8 @@ function getQuestionBadge(question: QuestionItem) {
   return { label: 'Live', className: 'badge-live' }
 }
 
-export default function PlayPage() {
-  const searchParams = useSearchParams()
-  const matchId = searchParams.get('match_id')?.trim() ?? ''
+export default function PlayPage({ initialMatchId = '' }: PlayPageProps) {
+  const matchId = initialMatchId.trim()
 
   const [userKey, setUserKey] = useState('')
   const [match, setMatch] = useState<MatchData | null>(null)

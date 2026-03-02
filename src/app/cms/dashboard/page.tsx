@@ -209,7 +209,12 @@ export default function CmsDashboardPage() {
   const [saving, setSaving] = useState(false)
   const [savingMatchId, setSavingMatchId] = useState('')
   const [savingQuestionId, setSavingQuestionId] = useState('')
+  const [copiedMatchId, setCopiedMatchId] = useState('')
   const [error, setError] = useState('')
+
+  const getMatchPlayPath = useCallback((matchId: string) => {
+    return `/ipl/play?match_id=${encodeURIComponent(matchId)}`
+  }, [])
 
   const matchOptions = useMemo(
     () =>
@@ -534,6 +539,21 @@ export default function CmsDashboardPage() {
       setError(message)
     } finally {
       setSavingMatchId('')
+    }
+  }
+
+  const onCopyMatchUrl = async (matchId: string) => {
+    const path = getMatchPlayPath(matchId)
+    const url = typeof window === 'undefined' ? path : `${window.location.origin}${path}`
+
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopiedMatchId(matchId)
+      setTimeout(() => {
+        setCopiedMatchId((current) => (current === matchId ? '' : current))
+      }, 1500)
+    } catch {
+      setError('Failed to copy match URL')
     }
   }
 
@@ -1057,6 +1077,7 @@ export default function CmsDashboardPage() {
                     <th className="border-b border-zinc-200 px-2 py-2">Date</th>
                     <th className="border-b border-zinc-200 px-2 py-2">State</th>
                     <th className="border-b border-zinc-200 px-2 py-2">Prize</th>
+                    <th className="border-b border-zinc-200 px-2 py-2">Match URL</th>
                     <th className="border-b border-zinc-200 px-2 py-2">Save</th>
                   </tr>
                 </thead>
@@ -1141,6 +1162,30 @@ export default function CmsDashboardPage() {
                             className="w-56 rounded-md border border-zinc-300 px-2 py-1"
                             placeholder="Prize image URL"
                           />
+                        </div>
+                      </td>
+                      <td className="border-b border-zinc-100 px-2 py-2">
+                        <div className="flex min-w-56 flex-col gap-2">
+                          <code className="break-all rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-700">
+                            {getMatchPlayPath(match.id)}
+                          </code>
+                          <div className="flex gap-2">
+                            <a
+                              href={getMatchPlayPath(match.id)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                            >
+                              Open
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => void onCopyMatchUrl(match.id)}
+                              className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                            >
+                              {copiedMatchId === match.id ? 'Copied' : 'Copy URL'}
+                            </button>
+                          </div>
                         </div>
                       </td>
                       <td className="border-b border-zinc-100 px-2 py-2">

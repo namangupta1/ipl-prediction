@@ -1,16 +1,26 @@
-import { Suspense } from 'react'
 import PlayClient from './PlayClient'
 
-export default function Page() {
-  return (
-    <Suspense
-      fallback={
-        <div className="p-6 text-sm text-zinc-600">
-          Loading match…
-        </div>
-      }
-    >
-      <PlayClient />
-    </Suspense>
-  )
+type PageProps = {
+  searchParams: Promise<{
+    match_id?: string | string[]
+  }>
+}
+
+function getMatchId(value: string | string[] | undefined) {
+  if (typeof value === 'string') {
+    return value.trim()
+  }
+
+  if (Array.isArray(value) && value.length > 0) {
+    return value[0]?.trim() ?? ''
+  }
+
+  return ''
+}
+
+export default async function Page({ searchParams }: PageProps) {
+  const params = await searchParams
+  const initialMatchId = getMatchId(params.match_id)
+
+  return <PlayClient initialMatchId={initialMatchId} />
 }
