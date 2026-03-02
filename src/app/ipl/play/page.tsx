@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+
 import { getUserKey } from '@/lib/userKey'
 
 type MatchData = {
@@ -14,7 +15,6 @@ type MatchData = {
   prize_name?: string | null
   prize_image_url?: string | null
 }
-
 
 type OptionItem = {
   id: string
@@ -41,6 +41,12 @@ type AnswersPayload = {
     option_id: string
     updated_at?: string
   }>
+  scoring?: {
+    total_settled: number
+    total_correct: number
+    total_answered: number
+    score: number
+  }
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
@@ -60,8 +66,7 @@ function getPhaseOrder(category: string) {
 }
 
 function sortQuestionsByPhaseAndIndex(a: QuestionItem, b: QuestionItem) {
-  const phaseDiff =
-    getPhaseOrder(a.question_category) - getPhaseOrder(b.question_category)
+  const phaseDiff = getPhaseOrder(a.question_category) - getPhaseOrder(b.question_category)
   if (phaseDiff !== 0) return phaseDiff
 
   const indexDiff = a.display_order - b.display_order
@@ -72,8 +77,10 @@ function sortQuestionsByPhaseAndIndex(a: QuestionItem, b: QuestionItem) {
 
 function formatDate(dateValue?: string | null) {
   if (!dateValue) return 'Date TBA'
+
   const date = new Date(dateValue)
   if (Number.isNaN(date.getTime())) return String(dateValue)
+
   return date.toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
@@ -81,8 +88,28 @@ function formatDate(dateValue?: string | null) {
   })
 }
 
+function formatStateLabel(state?: string | null) {
+  if (!state) return 'Unknown'
+  return state.replaceAll('_', ' ')
+}
+
 function prettyCategory(category: string) {
-  return category.replaceAll('_', ' ').replaceAll('innings 1', 'Innings 1').replaceAll('innings 2', 'Innings 2')
+  return category
+    .replaceAll('_', ' ')
+    .replaceAll('innings 1', 'Innings 1')
+    .replaceAll('innings 2', 'Innings 2')
+}
+
+function getQuestionBadge(question: QuestionItem) {
+  if (question.is_settled) {
+    return { label: 'Settled', className: 'badge-settled' }
+  }
+
+  if (question.is_locked) {
+    return { label: 'Locked', className: 'badge-locked' }
+  }
+
+  return { label: 'Live', className: 'badge-live' }
 }
 
 export default function PlayPage() {
@@ -91,17 +118,14 @@ export default function PlayPage() {
 
   const [userKey, setUserKey] = useState('')
   const [match, setMatch] = useState<MatchData | null>(null)
+  const [scoreData, setScoreData] = useState<{
+    total_settled: number
+    total_correct: number
+    total_answered: number
+    score: number
+  } | null>(null)
 
-const [scoreData, setScoreData] = useState<{
-  total_settled: number
-  total_correct: number
-  total_answered: number
-  score: number
-} | null>(null)
-
-  // current phase questions
   const [questions, setQuestions] = useState<QuestionItem[]>([])
-  // all questions (for View/Modify answers)
   const [allQuestions, setAllQuestions] = useState<QuestionItem[]>([])
 
   const [selectedByQuestion, setSelectedByQuestion] = useState<Record<string, string>>({})
@@ -126,7 +150,7 @@ const [scoreData, setScoreData] = useState<{
   )
 
   const answeredCount = useMemo(
-    () => questions.filter((q) => Boolean(selectedByQuestion[q.id])).length,
+    () => questions.filter((question) => Boolean(selectedByQuestion[question.id])).length,
     [questions, selectedByQuestion]
   )
 
@@ -176,10 +200,12 @@ const [scoreData, setScoreData] = useState<{
           const payload = await questionsRes.json().catch(() => null)
           throw new Error(payload?.error ?? 'Failed to load questions')
         }
+
         if (!allQuestionsRes.ok) {
           const payload = await allQuestionsRes.json().catch(() => null)
           throw new Error(payload?.error ?? 'Failed to load all questions')
         }
+
         if (!answersRes.ok) {
           const payload = await answersRes.json().catch(() => null)
           throw new Error(payload?.error ?? 'Failed to load your answers')
@@ -187,9 +213,9 @@ const [scoreData, setScoreData] = useState<{
 
         const questionsPayload = await questionsRes.json()
         const allQuestionsPayload = await allQuestionsRes.json()
-        const answersPayload = await answersRes.json()
+        const answersPayload = (await answersRes.json()) as AnswersPayload
 
-setScoreData(answersPayload.scoring ?? null)
+        setScoreData(answersPayload.scoring ?? null)
 
         const fetchedQuestions = Array.isArray(questionsPayload.questions)
           ? (questionsPayload.questions as QuestionItem[])
@@ -204,13 +230,17 @@ setScoreData(answersPayload.scoring ?? null)
         setAllQuestions(fetchedAllQuestions)
 
         const initialSelected: Record<string, string> = {}
-        for (const a of answersPayload.answers ?? []) {
-          initialSelected[a.question_id] = a.option_id
+        for (const answer of answersPayload.answers ?? []) {
+          initialSelected[answer.question_id] = answer.option_id
         }
+
         setSelectedByQuestion(initialSelected)
         setSaveStateByQuestion({})
 
-        const firstUnansweredIndex = fetchedQuestions.findIndex((q) => !initialSelected[q.id])
+        const firstUnansweredIndex = fetchedQuestions.findIndex(
+          (question) => !initialSelected[question.id]
+        )
+
         if (firstUnansweredIndex === -1) {
           setCurrentQuestionIndex(Math.max(fetchedQuestions.length - 1, 0))
         } else {
@@ -218,8 +248,8 @@ setScoreData(answersPayload.scoring ?? null)
         }
 
         setIsReviewingAfterCompletion(false)
-      } catch (e) {
-        const message = e instanceof Error ? e.message : 'Failed to load play screen'
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to load play screen'
         setLoadError(message)
       } finally {
         setLoading(false)
@@ -250,6 +280,7 @@ setScoreData(answersPayload.scoring ?? null)
       setCurrentQuestionIndex(0)
       return
     }
+
     if (currentQuestionIndex > questions.length - 1) {
       setCurrentQuestionIndex(questions.length - 1)
     }
@@ -257,15 +288,13 @@ setScoreData(answersPayload.scoring ?? null)
 
   const onOptionClick = async (question: QuestionItem, optionId: string) => {
     if (!matchId || !userKey || isCurrentSaving) return
-
-    // lock from CMS
     if (question.is_locked || question.is_settled) return
 
     const questionId = question.id
     const previousOptionId = selectedByQuestion[questionId]
 
-    setSelectedByQuestion((c) => ({ ...c, [questionId]: optionId }))
-    setSaveStateByQuestion((c) => ({ ...c, [questionId]: 'saving' }))
+    setSelectedByQuestion((current) => ({ ...current, [questionId]: optionId }))
+    setSaveStateByQuestion((current) => ({ ...current, [questionId]: 'saving' }))
 
     try {
       const response = await fetch('/api/answers', {
@@ -284,36 +313,41 @@ setScoreData(answersPayload.scoring ?? null)
         throw new Error(payload?.error ?? 'Failed to save answer')
       }
 
-      setSaveStateByQuestion((c) => ({ ...c, [questionId]: 'saved' }))
+      setSaveStateByQuestion((current) => ({ ...current, [questionId]: 'saved' }))
 
-      // auto-advance
       const nextIndex = currentQuestionIndex + 1
       if (nextIndex < questions.length) {
         setCurrentQuestionIndex(nextIndex)
       }
     } catch {
-      setSelectedByQuestion((c) => {
-        const next = { ...c }
-        if (previousOptionId) next[questionId] = previousOptionId
-        else delete next[questionId]
+      setSelectedByQuestion((current) => {
+        const next = { ...current }
+        if (previousOptionId) {
+          next[questionId] = previousOptionId
+        } else {
+          delete next[questionId]
+        }
         return next
       })
-      setSaveStateByQuestion((c) => ({ ...c, [questionId]: 'error' }))
+
+      setSaveStateByQuestion((current) => ({ ...current, [questionId]: 'error' }))
     }
   }
 
   const onEditQuestion = (questionId: string) => {
-    const index = questions.findIndex((q) => q.id === questionId)
+    const index = questions.findIndex((question) => question.id === questionId)
     if (index === -1) return
 
     setCurrentQuestionIndex(index)
-    if (allAnswered) setIsReviewingAfterCompletion(true)
+    if (allAnswered) {
+      setIsReviewingAfterCompletion(true)
+    }
   }
 
   if (!matchId) {
     return (
       <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-8">
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+        <div className="card-primary p-4 text-sm text-[var(--color-danger)]">
           Match not selected. Please go back and choose a match to play.
         </div>
       </main>
@@ -323,7 +357,7 @@ setScoreData(answersPayload.scoring ?? null)
   if (loading) {
     return (
       <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-8">
-        <p className="text-sm text-zinc-600">Loading match...</p>
+        <p className="text-sm text-[var(--color-text-muted)]">Loading match...</p>
       </main>
     )
   }
@@ -331,291 +365,248 @@ setScoreData(answersPayload.scoring ?? null)
   if (matchError || !match) {
     return (
       <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-8">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="card-primary p-4 text-sm text-[var(--color-danger)]">
           {matchError || 'Failed to load match details.'}
         </div>
       </main>
     )
   }
 
+  const currentBadge = currentQuestion ? getQuestionBadge(currentQuestion) : null
+
   return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-8">
-      {/* Header */}
-      <header className="mb-6 rounded-xl border border-zinc-200 bg-white p-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-semibold text-zinc-900">{headerTitle}</h1>
-          <p className="text-sm text-zinc-600">{formatDate(match.match_date)}</p>
-          {match.match_state ? (
-            <p className="text-xs text-zinc-500">Match state: {match.match_state}</p>
-          ) : null}
-        </div>
-
-        <div className="mt-3 rounded-lg bg-zinc-50 p-3">
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Prize</p>
-          <p className="mt-1 text-sm font-medium text-zinc-800">
-            {match.prize_name ?? 'To be announced'}
-          </p>
-          {match.prize_image_url ? (
-            <img
-              src={match.prize_image_url}
-              alt={match.prize_name ?? 'Prize image'}
-              className="mt-3 h-28 w-full rounded-md border border-zinc-200 object-cover"
-            />
-          ) : (
-            <p className="mt-2 text-xs text-zinc-500">No prize image</p>
-          )}
-        </div>
-      </header>
-
-      {/* Score + Leaderboard placeholders */}
-      <section className="mb-6 grid grid-cols-2 gap-3 md:gap-4">
-        <article className="rounded-xl border border-zinc-200 bg-white p-4">
-          <h2 className="text-sm font-medium text-zinc-500">Your score</h2>
-          <p className="mt-2 text-2xl font-semibold text-zinc-900">
-  {scoreData?.score ?? 0} points
-</p>
-<p className="mt-1 text-sm text-zinc-600">
-  {scoreData
-    ? `${scoreData.total_correct} / ${scoreData.total_settled} correct`
-    : 'Updated after settlement'}
-</p>
-        </article>
-
-        <article className="rounded-xl border border-zinc-200 bg-white p-4">
-          <h2 className="text-sm font-medium text-zinc-500">Leaderboard</h2>
-          <p className="mt-2 text-sm text-zinc-700">
-            Leaderboard will appear after more entries.
-          </p>
-        </article>
-      </section>
-
-      {loadError ? (
-        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {loadError}
-        </p>
-      ) : null}
-
-      {/* Main Question Panel */}
-      {questions.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
-          No questions live right now. Come back for the next phase.
-        </div>
-      ) : showCompletionPanel ? (
-        <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-          <p className="text-base font-semibold text-emerald-800">✅ You&apos;re done for this phase</p>
-          <p className="mt-1 text-sm text-emerald-700">
-            Come back when the next phase starts.
-          </p>
-          <button
-            type="button"
-            onClick={() => void loadData(userKey)}
-            className="mt-4 rounded-md bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-800"
-          >
-            Refresh
-          </button>
-        </section>
-      ) : currentQuestion ? (
-        <section className="rounded-xl border border-zinc-200 bg-white p-5">
-          <div className="flex items-start justify-between gap-3">
+    <main className="broadcast-shell mx-auto min-h-screen w-full max-w-5xl px-4 py-8">
+      <div className="broadcast-content">
+        <header className="card-status motion-rise mb-5 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                Question {currentQuestionIndex + 1} of {questions.length}
-              </p>
-              <p className="mt-1 text-xs text-zinc-500">
-                {prettyCategory(currentQuestion.question_category)}
-              </p>
+              <p className="font-display text-xs uppercase tracking-[0.2em] text-white/70">Matchday Feed</p>
+              <h1 className="font-display mt-2 text-4xl leading-none text-white">{headerTitle}</h1>
             </div>
-
-            {(currentQuestion.is_locked || currentQuestion.is_settled) ? (
-              <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700">
-                🔒 Locked
-              </span>
-            ) : (
-              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700">
-                Live
-              </span>
-            )}
+            <span className="badge-phase border-white/35 bg-white/12 text-white">
+              {formatStateLabel(match.match_state)}
+            </span>
           </div>
 
-          <p className="mt-3 text-base font-medium text-zinc-900">
-            {currentQuestion.question_text}
-          </p>
-
-          <div className="mt-4 grid gap-2">
-            {currentQuestion.options.map((option) => {
-              const isSelected = currentSelectedOptionId === option.id
-              const disabled = isCurrentSaving || isCurrentLocked
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => void onOptionClick(currentQuestion, option.id)}
-                  disabled={disabled}
-                  className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
-                    isSelected
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50'
-                  } ${disabled ? 'cursor-not-allowed opacity-70' : ''}`}
-                >
-                  {option.option_text}
-                </button>
-              )
-            })}
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <p className="text-sm text-white/80">{formatDate(match.match_date)}</p>
+            <p className="text-right text-sm text-white/80">Match #{match.match_number ?? '-'}</p>
           </div>
 
-          {/* Save status */}
-          {currentSaveState === 'saving' ? (
-            <p className="mt-2 text-xs text-zinc-500">Saving...</p>
-          ) : null}
-          {currentSaveState === 'saved' ? (
-            <p className="mt-2 text-xs text-emerald-600">Saved ✅</p>
-          ) : null}
-          {currentSaveState === 'error' ? (
-            <p className="mt-2 text-xs text-red-600">Failed to save. Tap again.</p>
-          ) : null}
+          <div className="mt-4 rounded-xl border border-white/20 bg-white/8 p-3">
+            <p className="text-[11px] uppercase tracking-wide text-white/70">Prize</p>
+            <p className="mt-1 text-sm font-semibold text-white">{match.prize_name ?? 'To be announced'}</p>
+          </div>
+        </header>
 
-          {/* Settled reveal */}
-          {currentQuestion.is_settled ? (
-            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-              <p className="font-semibold">
-                ✅ Correct: {currentQuestion.correct_option_text ?? '—'}
-              </p>
-              {currentSelectedOptionId ? (
-                <p className="mt-1">
-                  {currentSelectedOptionId === currentQuestion.correct_option_id
-                    ? 'You were right ✅'
-                    : 'You missed ❌'}
-                </p>
-              ) : (
-                <p className="mt-1 text-emerald-700">You did not answer this question.</p>
-              )}
-            </div>
-          ) : null}
-
-          {/* Navigation */}
-          <div className="mt-5 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => setCurrentQuestionIndex((i) => Math.max(i - 1, 0))}
-              disabled={currentQuestionIndex === 0}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Prev
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setCurrentQuestionIndex((i) => Math.min(i + 1, questions.length - 1))}
-              disabled={
-                currentQuestionIndex >= questions.length - 1 ||
-                !currentSelectedOptionId ||
-                isCurrentSaving
-              }
-              className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
+        <section className="progress-rail motion-rise mb-5 p-3" style={{ animationDelay: '70ms' }}>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+            <span>
+              Question {questions.length === 0 ? 0 : currentQuestionIndex + 1} of {questions.length}
+            </span>
+            <span>
+              {answeredCount} answered / {questions.length}
+            </span>
           </div>
         </section>
-      ) : null}
 
-      {/* View/Modify Answers */}
-      {sortedAllQuestions.length > 0 ? (
-        <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5">
-          <button
-            type="button"
-            onClick={() => setIsAnswersExpanded((c) => !c)}
-            className="flex w-full items-center justify-between text-left"
-          >
-            <h2 className="text-sm font-medium text-zinc-700">View/Modify Answers</h2>
-            <span className="text-xs font-medium text-zinc-600">
-              {isAnswersExpanded ? 'Collapse' : 'Expand'}
-            </span>
-          </button>
+        <section className="mb-6 grid grid-cols-2 gap-3 md:gap-4">
+          <article className="card-primary motion-rise p-4" style={{ animationDelay: '110ms' }}>
+            <h2 className="font-display text-sm uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Your score</h2>
+            <p className="font-display mt-2 text-4xl leading-none text-[var(--color-brand)]">{scoreData?.score ?? 0}</p>
+            <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+              Settled: {scoreData?.total_settled ?? 0} | Correct: {scoreData?.total_correct ?? 0}
+            </p>
+            <p className="text-xs text-[var(--color-text-muted)]">Answered in settled: {scoreData?.total_answered ?? 0}</p>
+          </article>
 
-          {isAnswersExpanded ? (
-            <div className="mt-3 space-y-3">
-              {sortedAllQuestions.map((q) => {
-                const selectedOptionId = selectedByQuestion[q.id]
-                const selectedOptionText =
-                  q.options.find((o) => o.id === selectedOptionId)?.option_text
+          <article className="card-muted motion-rise p-4" style={{ animationDelay: '160ms' }}>
+            <h2 className="font-display text-sm uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Leaderboard</h2>
+            <p className="mt-2 text-sm text-[var(--color-text-strong)]">Leaderboard goes live as more users join this match.</p>
+            <p className="mt-2 text-xs text-[var(--color-text-muted)]">Your latest settled points are reflected in score.</p>
+          </article>
+        </section>
 
-                const isLocked = q.is_locked || q.is_settled
+        {loadError ? (
+          <p className="badge-error mb-4 inline-flex">{loadError}</p>
+        ) : null}
+
+        {questions.length === 0 ? (
+          <div className="card-primary p-6 text-sm text-[var(--color-text-muted)]">
+            No questions live right now. Come back for the next phase.
+          </div>
+        ) : showCompletionPanel ? (
+          <section className="card-primary motion-rise p-5" style={{ animationDelay: '200ms' }}>
+            <p className="font-display text-2xl text-[var(--color-success)]">You&apos;re done for this phase</p>
+            <p className="mt-1 text-sm text-[var(--color-text-muted)]">Come back when the next phase starts.</p>
+            <button
+              type="button"
+              onClick={() => void loadData(userKey)}
+              className="btn-primary mt-4 px-4 py-2 text-sm"
+            >
+              Refresh Feed
+            </button>
+          </section>
+        ) : currentQuestion ? (
+          <section className="card-primary motion-rise p-5" style={{ animationDelay: '210ms' }}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="font-display text-sm uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+                  Question {currentQuestionIndex + 1}
+                </p>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">{prettyCategory(currentQuestion.question_category)}</p>
+              </div>
+              {currentBadge ? <span className={currentBadge.className}>{currentBadge.label}</span> : null}
+            </div>
+
+            <p className="mt-4 text-base font-semibold text-[var(--color-text-strong)]">{currentQuestion.question_text}</p>
+
+            {isCurrentLocked ? (
+              <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                {currentQuestion.is_settled
+                  ? 'This question is settled. Correct answer is shown below.'
+                  : 'This question has been locked by the editor.'}
+              </p>
+            ) : null}
+
+            <div className="mt-4 grid gap-2">
+              {currentQuestion.options.map((option) => {
+                const isSelected = currentSelectedOptionId === option.id
+                const isDisabled = isCurrentSaving || isCurrentLocked
 
                 return (
-                  <div
-                    key={q.id}
-                    className="flex items-start justify-between gap-4 rounded-lg border border-zinc-200 p-3"
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => void onOptionClick(currentQuestion, option.id)}
+                    disabled={isDisabled}
+                    className={`option-button ${isSelected ? 'option-button-selected' : ''} ${
+                      isDisabled ? 'option-button-locked' : ''
+                    }`}
                   >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium text-zinc-900">{q.question_text}</p>
-                        <span className="rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700">
-                          {prettyCategory(q.question_category)}
-                        </span>
-
-                        {q.is_settled ? (
-                          <span className="rounded bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
-                            Settled
-                          </span>
-                        ) : q.is_locked ? (
-                          <span className="rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700">
-                            Locked
-                          </span>
-                        ) : (
-                          <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
-                            Live
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="mt-1 text-xs text-zinc-600">
-                        Your answer: {selectedOptionText ?? 'Not answered'}
-                      </p>
-
-                      {q.is_settled ? (
-                        <p className="mt-1 text-xs text-emerald-700">
-                          ✅ Correct: {q.correct_option_text ?? '—'}{' '}
-                          {selectedOptionId
-                            ? selectedOptionId === q.correct_option_id
-                              ? '(you were right)'
-                              : '(you were wrong)'
-                            : '(not answered)'}
-                        </p>
-                      ) : (
-                        <p className="mt-1 text-xs text-zinc-500">Result pending</p>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => onEditQuestion(q.id)}
-                      disabled={isLocked}
-                      className="shrink-0 rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Edit
-                    </button>
-                  </div>
+                    {option.option_text}
+                  </button>
                 )
               })}
             </div>
-          ) : (
-            <p className="mt-3 text-xs text-zinc-500">Tap to view or modify your answers.</p>
-          )}
-        </section>
-      ) : null}
 
-      {/* Rules */}
-      <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5">
-        <h2 className="text-sm font-medium text-zinc-700">Rules</h2>
-        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-zinc-700">
-          <li>Answer questions shown for the current phase.</li>
-          <li>You can change an answer until the editor locks that question in CMS.</li>
-          <li>Once a question is settled, the correct answer will be shown here.</li>
-          <li>Score and leaderboard will be updated after settlement (Phase 1 placeholder).</li>
-          <li>If no questions are live, wait for the next phase to begin.</li>
-        </ul>
-      </section>
+            {currentSaveState === 'saving' ? <p className="mt-2 text-xs text-[var(--color-text-muted)]">Saving...</p> : null}
+            {currentSaveState === 'saved' ? <p className="mt-2 text-xs text-[var(--color-success)]">Saved.</p> : null}
+            {currentSaveState === 'error' ? (
+              <p className="mt-2 text-xs text-[var(--color-danger)]">Failed to save. Tap again.</p>
+            ) : null}
+
+            {currentQuestion.is_settled ? (
+              <div className="card-muted mt-4 p-3 text-sm">
+                <p className="font-semibold text-[var(--color-success)]">Correct: {currentQuestion.correct_option_text ?? '—'}</p>
+                {currentSelectedOptionId ? (
+                  <p className="mt-1 text-[var(--color-text-muted)]">
+                    {currentSelectedOptionId === currentQuestion.correct_option_id
+                      ? 'You were right.'
+                      : 'You missed this one.'}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-[var(--color-text-muted)]">You did not answer this question.</p>
+                )}
+              </div>
+            ) : null}
+
+            <div className="mt-5 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setCurrentQuestionIndex((index) => Math.max(index - 1, 0))}
+                disabled={currentQuestionIndex === 0}
+                className="btn-secondary px-3 py-2 text-sm"
+              >
+                Prev
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCurrentQuestionIndex((index) => Math.min(index + 1, questions.length - 1))}
+                disabled={currentQuestionIndex >= questions.length - 1 || !currentSelectedOptionId || isCurrentSaving}
+                className="btn-primary px-3 py-2 text-sm"
+              >
+                Next
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {sortedAllQuestions.length > 0 ? (
+          <section className="card-primary motion-rise mt-6 p-5" style={{ animationDelay: '240ms' }}>
+            <button
+              type="button"
+              onClick={() => setIsAnswersExpanded((current) => !current)}
+              className="flex w-full items-center justify-between text-left"
+            >
+              <h2 className="font-display text-lg text-[var(--color-text-strong)]">View / Modify Answers</h2>
+              <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                {isAnswersExpanded ? 'Collapse' : 'Expand'}
+              </span>
+            </button>
+
+            {isAnswersExpanded ? (
+              <div className="mt-4 space-y-3">
+                {sortedAllQuestions.map((question, index) => {
+                  const selectedOptionId = selectedByQuestion[question.id]
+                  const selectedOptionText = question.options.find((option) => option.id === selectedOptionId)?.option_text
+                  const isLocked = question.is_locked || question.is_settled
+                  const badge = getQuestionBadge(question)
+
+                  return (
+                    <div
+                      key={question.id}
+                      className="card-muted motion-rise flex items-start justify-between gap-4 p-3"
+                      style={{ animationDelay: `${index * 30}ms` }}
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={badge.className}>{badge.label}</span>
+                          <span className="badge-phase">{prettyCategory(question.question_category)}</span>
+                        </div>
+
+                        <p className="text-sm font-semibold text-[var(--color-text-strong)]">{question.question_text}</p>
+                        <p className="text-xs text-[var(--color-text-muted)]">
+                          Your answer: {selectedOptionText ?? 'Not answered'}
+                        </p>
+
+                        {question.is_settled ? (
+                          <p className="text-xs text-[var(--color-success)]">Correct: {question.correct_option_text ?? '—'}</p>
+                        ) : (
+                          <p className="text-xs text-[var(--color-text-muted)]">Result pending</p>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => onEditQuestion(question.id)}
+                        disabled={isLocked}
+                        className="btn-secondary shrink-0 px-3 py-1.5 text-xs"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-[var(--color-text-muted)]">Tap to review all answers and statuses.</p>
+            )}
+          </section>
+        ) : null}
+
+        <section className="card-muted motion-rise mt-6 p-5" style={{ animationDelay: '260ms' }}>
+          <h2 className="font-display text-lg text-[var(--color-text-strong)]">Rules</h2>
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-[var(--color-text-muted)]">
+            <li>Answer questions shown for the current phase.</li>
+            <li>You can change an answer until the editor locks that question in CMS.</li>
+            <li>Once a question is settled, the correct answer is revealed immediately.</li>
+            <li>Score updates on settled questions only.</li>
+            <li>If no questions are live, wait for the next phase to begin.</li>
+          </ul>
+        </section>
+      </div>
     </main>
   )
 }

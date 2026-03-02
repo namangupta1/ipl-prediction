@@ -806,6 +806,16 @@ export default function CmsDashboardPage() {
         ...current,
         [questionId]: { type: 'success', message: 'Correct option saved' },
       }))
+
+      setTimeout(() => {
+        setSettleFeedbackByQuestion((current) => {
+          const next = { ...current }
+          if (next[questionId]?.type === 'success') {
+            delete next[questionId]
+          }
+          return next
+        })
+      }, 2500)
     } catch (requestError) {
       const message =
         requestError instanceof Error ? requestError.message : 'Failed to settle question'
@@ -825,30 +835,34 @@ export default function CmsDashboardPage() {
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8">
+    <main className="broadcast-shell cms-app mx-auto min-h-screen w-full max-w-6xl px-4 py-8">
+      <div className="broadcast-content">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">CMS Dashboard</h1>
-          <p className="mt-1 text-sm text-zinc-600">Logged in as {me || 'Unknown'}</p>
+          <p className="font-display text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+            Broadcast Control
+          </p>
+          <h1 className="font-display text-4xl leading-none text-[var(--color-brand)]">CMS Dashboard</h1>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">Logged in as {me || 'Unknown'}</p>
         </div>
 
         <button
           type="button"
           onClick={onLogout}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
+          className="btn-secondary px-3 py-2 text-sm"
         >
           Logout
         </button>
       </div>
 
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setActiveTab('allowlist')}
-          className={`rounded-md px-3 py-2 text-sm font-medium ${
+          className={`px-3 py-2 text-sm ${
             activeTab === 'allowlist'
-              ? 'bg-zinc-900 text-white'
-              : 'border border-zinc-300 text-zinc-700 hover:bg-zinc-50'
+              ? 'btn-primary'
+              : 'btn-secondary'
           }`}
         >
           Allowlist
@@ -856,10 +870,10 @@ export default function CmsDashboardPage() {
         <button
           type="button"
           onClick={() => setActiveTab('matches')}
-          className={`rounded-md px-3 py-2 text-sm font-medium ${
+          className={`px-3 py-2 text-sm ${
             activeTab === 'matches'
-              ? 'bg-zinc-900 text-white'
-              : 'border border-zinc-300 text-zinc-700 hover:bg-zinc-50'
+              ? 'btn-primary'
+              : 'btn-secondary'
           }`}
         >
           Matches
@@ -867,10 +881,10 @@ export default function CmsDashboardPage() {
         <button
           type="button"
           onClick={() => setActiveTab('questions')}
-          className={`rounded-md px-3 py-2 text-sm font-medium ${
+          className={`px-3 py-2 text-sm ${
             activeTab === 'questions'
-              ? 'bg-zinc-900 text-white'
-              : 'border border-zinc-300 text-zinc-700 hover:bg-zinc-50'
+              ? 'btn-primary'
+              : 'btn-secondary'
           }`}
         >
           Questions
@@ -878,10 +892,10 @@ export default function CmsDashboardPage() {
         <button
           type="button"
           onClick={() => setActiveTab('live_ops')}
-          className={`rounded-md px-3 py-2 text-sm font-medium ${
+          className={`px-3 py-2 text-sm ${
             activeTab === 'live_ops'
-              ? 'bg-zinc-900 text-white'
-              : 'border border-zinc-300 text-zinc-700 hover:bg-zinc-50'
+              ? 'btn-primary'
+              : 'btn-secondary'
           }`}
         >
           Live Ops
@@ -889,13 +903,13 @@ export default function CmsDashboardPage() {
       </div>
 
       {error ? (
-        <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="badge-error mb-4 inline-flex">
           {error}
         </p>
       ) : null}
 
       {activeTab === 'allowlist' ? (
-        <section className="rounded-xl border border-zinc-200 bg-white p-5">
+        <section className="card-primary p-5">
           <h2 className="text-lg font-semibold text-zinc-900">Allowlist</h2>
           <p className="mt-1 text-sm text-zinc-600">Manage CMS phone access.</p>
 
@@ -954,7 +968,7 @@ export default function CmsDashboardPage() {
           )}
         </section>
       ) : activeTab === 'matches' ? (
-        <section className="rounded-xl border border-zinc-200 bg-white p-5">
+        <section className="card-primary p-5">
           <h2 className="text-lg font-semibold text-zinc-900">Matches</h2>
           <p className="mt-1 text-sm text-zinc-600">Create and update matches manually.</p>
 
@@ -1147,7 +1161,7 @@ export default function CmsDashboardPage() {
           )}
         </section>
       ) : activeTab === 'questions' ? (
-        <section className="rounded-xl border border-zinc-200 bg-white p-5">
+        <section className="card-primary p-5">
           <h2 className="text-lg font-semibold text-zinc-900">Questions</h2>
           <p className="mt-1 text-sm text-zinc-600">Create and manage questions by match and phase.</p>
 
@@ -1400,7 +1414,7 @@ export default function CmsDashboardPage() {
           </div>
         </section>
       ) : (
-        <section className="rounded-xl border border-zinc-200 bg-white p-5">
+        <section className="card-primary p-5">
           <h2 className="text-lg font-semibold text-zinc-900">Live Ops</h2>
           <p className="mt-1 text-sm text-zinc-600">Set correct options for published questions.</p>
 
@@ -1469,6 +1483,7 @@ export default function CmsDashboardPage() {
                         ? questionOptions.find((option) => option.id === question.correct_option_id)
                         : null
                       const isSettled = Boolean(question.is_settled && question.correct_option_id)
+                      const isLocked = Boolean(question.is_locked && !isSettled)
                       const feedback = settleFeedbackByQuestion[question.id]
 
                       return (
@@ -1479,10 +1494,14 @@ export default function CmsDashboardPage() {
                               {question.question_status}
                             </span>
                             {isSettled ? (
-                              <span className="rounded bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                              <span className="badge-settled">
                                 Settled
                               </span>
-                            ) : null}
+                            ) : isLocked ? (
+                              <span className="badge-locked">Locked</span>
+                            ) : (
+                              <span className="badge-live">Live</span>
+                            )}
                           </div>
 
                           <p className="mt-1 text-xs text-zinc-600">
@@ -1519,7 +1538,7 @@ export default function CmsDashboardPage() {
                               type="button"
                               onClick={() => void onSettleQuestion(question.id)}
                               disabled={!selectedOptionId || settlingQuestionId === question.id}
-                              className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                              className="btn-primary px-3 py-1.5 text-xs"
                             >
                               {settlingQuestionId === question.id
                                 ? 'Saving...'
@@ -1548,6 +1567,7 @@ export default function CmsDashboardPage() {
           )}
         </section>
       )}
+          </div>
     </main>
   )
 }

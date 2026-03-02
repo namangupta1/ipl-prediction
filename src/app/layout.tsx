@@ -1,34 +1,41 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from 'next'
+import { JetBrains_Mono, Rajdhani, Source_Sans_3 } from 'next/font/google'
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import './globals.css'
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const bodyFont = Source_Sans_3({
+  variable: '--font-body',
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+})
+
+const displayFont = Rajdhani({
+  variable: '--font-display',
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+})
+
+const monoFont = JetBrains_Mono({
+  variable: '--font-mono',
+  subsets: ['latin'],
+  weight: ['500', '700'],
+})
 
 export const metadata: Metadata = {
-  title: "IPL Prediction Game",
-  description: "Predict IPL match outcomes and compete with friends",
-};
+  title: 'IPL Prediction Game',
+  description: 'Predict IPL match outcomes and compete with friends',
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${bodyFont.variable} ${displayFont.variable} ${monoFont.variable} antialiased`}>
         {children}
       </body>
     </html>
-  );
+  )
 }

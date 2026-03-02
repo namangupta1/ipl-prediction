@@ -52,14 +52,15 @@ export default function CmsLoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md items-center px-4 py-8">
-      <div className="w-full rounded-xl border border-zinc-200 bg-white p-6">
-        <h1 className="text-xl font-semibold text-zinc-900">CMS Login</h1>
-        <p className="mt-1 text-sm text-zinc-600">Use allowlisted phone and OTP.</p>
+    <main className="broadcast-shell cms-app mx-auto flex min-h-screen w-full max-w-lg items-center px-4 py-8">
+      <div className="broadcast-content card-primary motion-rise w-full p-7">
+        <p className="font-display text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Control Room</p>
+        <h1 className="font-display mt-2 text-4xl leading-none text-[var(--color-brand)]">CMS Login</h1>
+        <p className="mt-2 text-sm text-[var(--color-text-muted)]">Use your allowlisted phone and OTP to enter live operations.</p>
 
-        <form onSubmit={onSubmit} className="mt-5 space-y-4">
+        <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div>
-            <label htmlFor="phone" className="mb-1 block text-sm text-zinc-700">
+            <label htmlFor="phone" className="mb-1 block text-sm font-semibold text-[var(--color-text-strong)]">
               Phone
             </label>
             <input
@@ -67,14 +68,14 @@ export default function CmsLoginPage() {
               type="text"
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              className="input-control w-full text-sm"
               placeholder="+91XXXXXXXXXX"
               required
             />
           </div>
 
           <div>
-            <label htmlFor="otp" className="mb-1 block text-sm text-zinc-700">
+            <label htmlFor="otp" className="mb-1 block text-sm font-semibold text-[var(--color-text-strong)]">
               OTP
             </label>
             <input
@@ -82,23 +83,15 @@ export default function CmsLoginPage() {
               type="password"
               value={otp}
               onChange={(event) => setOtp(event.target.value)}
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              className="input-control w-full text-sm"
               placeholder="0000"
               required
             />
           </div>
 
-          {error ? (
-            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </p>
-          ) : null}
+          {error ? <p className="badge-error inline-flex">{error}</p> : null}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
-          >
+          <button type="submit" disabled={loading} className="btn-primary w-full px-3 py-2 text-sm">
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>

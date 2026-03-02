@@ -52,60 +52,74 @@ function formatMatchState(state: string | null) {
   return state.replaceAll('_', ' ')
 }
 
+function stateBadgeClass(state: string | null) {
+  if (!state) return 'badge-phase'
+  if (state === 'completed') return 'badge-settled'
+  if (state === 'upcoming') return 'badge-live'
+  return 'badge-phase'
+}
+
 export default async function IplPage() {
   const matches = await getMatches()
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-zinc-900">IPL Matches</h1>
-        <p className="mt-1 text-sm text-zinc-600">Pick a match to play predictions.</p>
-      </div>
+    <main className="broadcast-shell mx-auto min-h-screen w-full max-w-5xl px-4 py-8">
+      <div className="broadcast-content">
+        <header className="card-status motion-rise mb-6 p-5">
+          <p className="font-display text-xs uppercase tracking-[0.2em] text-white/70">IPL Broadcast</p>
+          <h1 className="font-display mt-2 text-4xl leading-none text-white">Pick Your Matchday</h1>
+          <p className="mt-3 max-w-xl text-sm text-white/80">
+            Track live phases, lock predictions, and settle answers with confidence.
+          </p>
+        </header>
 
-      {matches.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
-          No matches available right now.
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {matches.map((match) => (
-            <Link
-              key={match.id}
-              href={`/ipl/play?match_id=${match.id}`}
-              className="block rounded-xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-300 hover:shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                      Match #{match.match_number ?? '-'}
+        {matches.length === 0 ? (
+          <div className="card-primary p-6 text-sm text-[var(--color-text-muted)]">No matches available right now.</div>
+        ) : (
+          <div className="space-y-4">
+            {matches.map((match, index) => (
+              <Link
+                key={match.id}
+                href={`/ipl/play?match_id=${match.id}`}
+                className="card-primary motion-rise block p-5 hover:border-[rgba(13,122,238,0.5)]"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-display text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+                    Match #{match.match_number ?? '-'}
+                  </p>
+                  <span className={stateBadgeClass(match.match_state)}>{formatMatchState(match.match_state)}</span>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="font-display text-3xl leading-none text-[var(--color-text-strong)]">
+                      {match.team_a ?? 'TBD'}
                     </p>
-                    <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-medium capitalize text-zinc-700">
-                      {formatMatchState(match.match_state)}
-                    </span>
+                    <p className="font-display mt-1 text-xl text-[var(--color-text-muted)]">vs {match.team_b ?? 'TBD'}</p>
                   </div>
 
-                  <p className="mt-2 text-lg font-semibold text-zinc-900">
-                    {match.team_a ?? 'TBD'} vs {match.team_b ?? 'TBD'}
-                  </p>
-
-                  <p className="mt-1 text-sm text-zinc-600">{formatDate(match.match_date)}</p>
-
-                  <div className="mt-3 rounded-lg bg-zinc-50 p-3">
-                    <p className="text-xs uppercase tracking-wide text-zinc-500">Prize</p>
-                    <p className="mt-1 text-sm font-medium text-zinc-800">
-                      {match.prize_name ?? 'To be announced'}
-                    </p>
-                    <p className="mt-1 truncate text-xs text-zinc-500">
-                      {match.prize_image_url ?? 'No prize image'}
-                    </p>
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">Match Date</p>
+                    <p className="font-display text-xl text-[var(--color-brand)]">{formatDate(match.match_date)}</p>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+
+                <div className="card-muted mt-4 flex items-center justify-between gap-3 p-3">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">Prize Pool</p>
+                    <p className="text-sm font-semibold text-[var(--color-text-strong)]">
+                      {match.prize_name ?? 'To be announced'}
+                    </p>
+                  </div>
+
+                  <span className="btn-primary px-3 py-1.5 text-xs">Play now</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </main>
   )
 }
