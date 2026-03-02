@@ -1,25 +1,45 @@
-# dependencies
+# Dependencies
 node_modules/
 .pnp
 .pnp.js
 
-# next.js
+# Next.js / build artifacts
 .next/
 out/
-
-# build
 build/
 dist/
+coverage/
 
-# env
+# Environment files
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
-# debug
+# Logs and debug output
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
 
-# misc
+# Local tooling
+.vercel/
+.idea/
+.vscode/
+
+# OS/editor
 .DS_Store
+
+# TypeScript
 *.tsbuildinfo
-next-env.d.ts
+
+# Secrets and key material
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+github-*
